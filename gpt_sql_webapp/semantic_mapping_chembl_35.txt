@@ -1,0 +1,118 @@
+# === Semantic Mapping for ChEMBL Natural Language Interface ===
+# This file defines domain-specific mappings to translate natural language terms into SQL-compatible expressions.
+# It is designed for use with ChEMBL SQLite datasets (e.g., chembl_35.db).
+# Language model agents should apply these mappings to build accurate queries from user questions.
+
+==============================
+== DRUG DEVELOPMENT STAGE ==
+==============================
+
+- "clinical candidates" → max_phase BETWEEN 1 AND 3
+- "drugs in clinical trial" → max_phase BETWEEN 1 AND 3
+- "phase 1 drugs" → max_phase = 1
+- "phase 2 drugs" → max_phase = 2
+- "phase 3 drugs" → max_phase = 3
+- "approved drugs" → max_phase = 4
+- "investigational drugs" → max_phase IN (1, 2, 3)
+- "marketed drugs" → max_phase = 4
+- "preclinical compounds" → max_phase = 0
+
+===========================
+== THERAPEUTIC PURPOSE ==
+===========================
+
+- "used for therapy" → therapeutic_flag = 1
+- "therapeutic use" → therapeutic_flag = 1
+- "non-therapeutic use" → therapeutic_flag = 0
+
+===========================
+== COMPOUND TYPES ==
+===========================
+
+- "small molecules" → molecule_type = 'Small molecule'
+- "large molecules" → molecule_type != 'Small molecule'
+- "biologics" → molecule_type = 'Biotech'
+- "antibodies" → molecule_type = 'Antibody'
+- "oligonucleotides" → molecule_type = 'Oligonucleotide'
+- "protein-based drugs" → molecule_type = 'Protein'
+- "natural products" → molecule_type = 'Natural product'
+
+================================
+== MOLECULAR PROPERTIES ==
+================================
+
+- "molecular weight under 500" → mw_freebase < 500
+- "molecular weight over 1000" → mw_freebase > 1000
+- "molecular weight between 300 and 600" → full_mwt BETWEEN 300 AND 600
+- "high logP" → alogp > 5
+- "low logP" → alogp < 2
+- "moderate lipophilicity" → alogp BETWEEN 2 AND 5
+- "PSA above 120" → psa > 120
+- "PSA below 90" → psa < 90
+- "Lipinski compliant" → ro5_violations = 0
+- "Lipinski violations" → ro5_violations > 0
+- "single rule-of-five violation" → ro5_violations = 1
+
+====================================
+== PHARMACOLOGICAL ACTIVITY ==
+====================================
+
+- "active compounds" → standard_value < 1000 AND standard_units IN ('nM', 'µM')
+- "highly active compounds" → standard_value < 100
+- "inactive compounds" → standard_value > 10000
+- "potent inhibitors" → standard_relation IN ('<', '<=') AND standard_value < 500
+- "IC50 < 500 nM" → standard_type = 'IC50' AND standard_value < 500
+- "IC50 active" → standard_type = 'IC50' AND standard_value < 1000
+- "Ki < 100 nM" → standard_type = 'Ki' AND standard_value < 100
+- "EC50 < 1 µM" → standard_type = 'EC50' AND standard_value < 1000
+- "bioactive" → standard_value < 10000
+
+============================
+== TARGET INFORMATION ==
+============================
+- "PPI targets" → target_type = 'PROTEIN PROTEIN INTERACTION'
+- "enzyme targets" → target_type = 'SINGLE PROTEIN' AND description LIKE '%enzyme%'
+- "binds to a receptor" → description LIKE '%receptor%'
+- "kinase targets" → description LIKE '%kinase%'
+- "G-protein coupled receptors" → target_classifications.class LIKE '%GPCR%'
+- "transcription factors" → target_classifications.class LIKE '%transcription%'
+
+================================
+== JOIN AND QUERY STRATEGIES ==
+================================
+
+- "compound names" → molecule_dictionary.molecule_name
+- "compound structures" → compound_structures.canonical_smiles
+- "bioactivity data" → activities table joined with molecule_dictionary and target_dictionary
+- "activity values" → activities.standard_value
+- "get all targets for a compound" → activities JOIN target_dictionary ON target_id
+- "get all compounds for a target" → activities JOIN molecule_dictionary ON molregno
+- "get compound SMILES" → compound_structures.canonical_smiles JOIN ON molregno
+- "cross-reference molecule ID" → molregno
+- "cross-reference target ID" → target_id
+
+====================================
+== COUNT / ANALYSIS INSTRUCTIONS ==
+====================================
+
+- "number of unique compounds" → SELECT COUNT(DISTINCT molregno)
+- "number of bioactivities for compound" → SELECT COUNT(*) FROM activities WHERE molregno = ...
+- "average IC50 for compound" → SELECT AVG(standard_value) WHERE standard_type = 'IC50'
+- "get all assay results" → SELECT * FROM activities WHERE molregno = ...
+- "list all active compounds for target" → JOIN activities and molecule_dictionary WHERE target_id = ... AND standard_value < 1000
+
+==================================
+== COMMON SYNONYMS / VARIANTS ==
+==================================
+
+- "drug" → compound / molecule
+- "compound" → molecule
+- "structure" → canonical_smiles
+- "activity" → standard_value
+- "potency" → standard_value
+- "binding affinity" → IC50 or Ki
+- "molecule ID" → molregno
+- "target name" → target_dictionary.target_name
+- "target class" → target_classifications.class
+
+# END OF SEMANTIC MAPPING
